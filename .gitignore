@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pfx
+*.pem
+.env
+*.log
+*.idea
+*.idea/
+build/
+dist/
+*.egg-info/
