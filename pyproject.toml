@@ -1,0 +1,24 @@
+[project]
+name = "pyvaultlib"
+version = "1.0.0"
+description = "Secure certificate-based Azure Key Vault client for internal use"
+authors = [
+  { name="Tyler Bradshaw", email="tbradshaw@proton.me" }
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "azure-identity>=1.23.0",
+    "azure-keyvault-secrets>=4.9.0",
+    "cryptography",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+#[tool.setuptools.packages.find]
+#where = ["main"]
+
+# To build run python - m build
+# To install in external application, point pip to the .whl file generated after succesful build

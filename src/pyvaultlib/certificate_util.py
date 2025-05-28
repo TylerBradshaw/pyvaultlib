@@ -1,0 +1,54 @@
+import os
+import subprocess
+import tempfile
+from azure.identity import CertificateCredential
+
+
+class WindowsCertCredential:
+    """
+    Securely retrieves a certificate by thumbprint from the Windows Certificate Store,
+    exports it to a temporary .pfx using PowerShell, and creates an Azure CertificateCredential.
+    Cleans up the temp file after use.
+    """
+    def __init__(self, tenant_id: str, client_id: str, thumbprint: str, password: str = ""):
+        self.tenant_id = tenant_id
+        self.client_id = client_id
+        self.thumbprint = thumbprint.replace(" ", "")
+        self.password = password
+        self._pfx_path = self._export_cert_with_powershell()
+        self.credential = self._create_credential()
+
+    def _export_cert_with_powershell(self) -> str:
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pfx")
+        temp_file.close()
+
+        ps_script = f'''
+        $thumb = "{self.thumbprint}"
+        $path = "{temp_file.name}"
+        $cert = Get-ChildItem -Path Cert:\\CurrentUser\\My | Where-Object {{$_.Thumbprint -eq $thumb}}
+        if ($cert -eq $null) {{
+            throw "Certificate not found."
+        }}
+        $bytes = $cert.Export("PFX", "{self.password}")
+        [System.IO.File]::WriteAllBytes($path, $bytes)
+        '''
+
+        result = subprocess.run(["powershell", "-Command", ps_script], capture_output=True, text=True)
+
+        if result.returncode != 0:
+            raise RuntimeError(f"PowerShell export failed:\n{result.stderr.strip()}")
+
+        return temp_file.name
+
+    def _create_credential(self) -> CertificateCredential:
+        return CertificateCredential(
+            tenant_id=self.tenant_id,
+            client_id=self.client_id,
+            certificate_path=self._pfx_path,
+            password=self.password if self.password else None
+        )
+
+    def cleanup(self):
+        if self._pfx_path and os.path.exists(self._pfx_path):
+            os.remove(self._pfx_path)
+            print(f"Cleaned up: {self._pfx_path}")
